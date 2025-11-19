@@ -9,11 +9,11 @@ import pandas as pd
 # --- 0. 시뮬레이션 상수 ---
 PHYSICS_TIME_STEP = 1.0 / 240.0
 NUM_EPISODES = 50
-MAX_SIM_TIME = 200.0  # 너무 긴 무한루프 방지용
+MAX_SIM_TIME = 1000.0 
 
 # 시작 위치 (X = -11.0)
-START_POS = [-11.0, -10.7, 0.5]  # [안정화] 높이 0.5로 수정됨
-START_YAW_DEG = 176              # 시작 yaw
+START_POS = [-11.0, -10.7, 0.5]  # 높이 0.5 (바닥에 박히지 않게 띄움)
+START_YAW_DEG = 176              
 START_YAW_RAD = math.radians(START_YAW_DEG)
 
 # --- 1. 환경 설정 ---
@@ -31,90 +31,55 @@ def setup_environment():
     wall_id = track_objects[-1]
     track_ids = track_objects[:-1]
 
-    # 트랙 전체 기본 마찰 1.0으로 세팅
+    # 초기 마찰 세팅
+    p.changeDynamics(plane_id, -1, lateralFriction=1.0)
     for t_id in track_ids:
         p.changeDynamics(t_id, -1, lateralFriction=1.0)
-
-    # plane도 기본 마찰 1.0
-    p.changeDynamics(plane_id, -1, lateralFriction=1.0)
     
     return plane_id, track_ids, wall_id
 
-# --- 2. 차량 로드 ---
+# --- 2. 차량 로드 (Constraint 포함) ---
 def load_racecar(pos, yaw):
     quat = p.getQuaternionFromEuler([0, 0, yaw])
     car = p.loadURDF("f10_racecar/racecar_differential.urdf", pos, quat)
     
-    # [안정화] 생성 후 잠시 대기
-    for _ in range(50):
+    # 생성 후 잠시 물리 안정화 대기
+    for _ in range(20):
         p.stepSimulation()
         
-    # 물리 제약조건 (강한 구동력 전달을 위해 설정 유지)
-    c = p.createConstraint(car, 9, car, 11, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    # 물리 제약조건 (한 번만 설정하면 계속 유지됨)
+    c = p.createConstraint(car, 9, car, 11, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=1, maxForce=10000)
 
-    c = p.createConstraint(car, 10, car, 13, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 10, car, 13, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, maxForce=10000)
 
-    c = p.createConstraint(car, 9, car, 13, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 9, car, 13, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, maxForce=10000)
 
-    c = p.createConstraint(car, 16, car, 18, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 16, car, 18, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=1, maxForce=10000)
 
-    c = p.createConstraint(car, 16, car, 19, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 16, car, 19, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, maxForce=10000)
 
-    c = p.createConstraint(car, 17, car, 19, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 17, car, 19, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, maxForce=10000)
 
-    c = p.createConstraint(car, 1, car, 18, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 1, car, 18, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, gearAuxLink=15, maxForce=10000)
 
-    c = p.createConstraint(car, 3, car, 19, jointType=p.JOINT_GEAR,
-                           jointAxis=[0,1,0],
-                           parentFramePosition=[0,0,0],
-                           childFramePosition=[0,0,0])
+    c = p.createConstraint(car, 3, car, 19, jointType=p.JOINT_GEAR, jointAxis=[0,1,0], parentFramePosition=[0,0,0], childFramePosition=[0,0,0])
     p.changeConstraint(c, gearRatio=-1, gearAuxLink=15, maxForce=10000)
     
     return car
 
-# --- 3. 랜덤 파라미터 (질량 + 브레이크 토크) ---
+# --- 3. 랜덤 파라미터 ---
 def get_random_conditions():
-    # 블랙아이스 구간에서의 노면 마찰계수 (예: 0.3/0.6/0.9 정도로 조정 가능)
-    target_friction = random.choice([1.0, 0.5, 0.2])
-    
-    # 블랙아이스 진입 전까지 맞추려고 하는 휠 속도 (VELOCITY_CONTROL target)
-    target_speed = random.uniform(80, 110)
-    
-    # 브레이크 시작 거리 (벽으로부터)
-    trigger_dist = random.uniform(0.5, 2.0)
-    
-    # 차량 질량 (1kg ~ 10kg)
+    target_friction = random.choice([1.0, 0.5, 0.1])
+    target_speed = random.uniform(60,100)
+    trigger_dist = random.uniform(0.1, 2.0)
     mass = random.uniform(1.0, 10.0)
-    
-    # 브레이크 토크 (충분히 크게, 고정)
     brake_torque = 100.0
     
     return {
@@ -129,63 +94,76 @@ def get_random_conditions():
 if __name__ == "__main__":
     p.connect(p.GUI)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
-    p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
-    p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
-    p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
     
+    # 1. 환경 로드 (한 번만 수행)
     plane_id, track_ids, wall_id = setup_environment()
     
     wall_pos_abs, _ = p.getBasePositionAndOrientation(wall_id)
     wall_x = wall_pos_abs[0]
     
-    summary_rows = []      # 에피소드 요약용
-    all_step_rows = []     # GRU/Attention용 시계열
+    # 2. 차량 로드 (한 번만 수행 - 중요!)
+    car_id = load_racecar(START_POS, START_YAW_RAD)
     
-    print(f"--- 데이터 수집 시작 (Black Ice + 질량 + 토크 제동 시나리오) ---")
+    summary_rows = []
+    all_step_rows = []
     
-    for ep in range(NUM_EPISODES):
-        # 이전 차량 제거
-        if 'car_id' in locals():
-            p.removeBody(car_id)
+    print(f"--- 데이터 수집 시작 (Reset Position Method) ---")
+    
+    wheels = [8, 15]   
+    steering = [0, 2] 
 
-        car_id = load_racecar(START_POS, START_YAW_RAD)
-        cond = get_random_conditions()
+    for ep in range(NUM_EPISODES):
+        # ==================================================
+        # [중요] 에피소드 초기화 (차량을 지우지 않고 위치만 리셋)
+        # ==================================================
         
-        # [초기화] 출발 전에는 무조건 마찰력 1.0 (Dry) 적용
+        # 1. 차량 위치/자세 리셋
+        p.resetBasePositionAndOrientation(
+            car_id, 
+            START_POS, 
+            p.getQuaternionFromEuler([0, 0, START_YAW_RAD])
+        )
+        
+        # 2. 차량 속도 리셋 (정지 상태로)
+        p.resetBaseVelocity(car_id, [0, 0, 0], [0, 0, 0])
+        
+        # 3. 환경 마찰력 리셋 (이전 에피소드에서 아이스반으로 변했을 수 있으므로 복구)
         p.changeDynamics(plane_id, -1, lateralFriction=1.0)
         for t_id in track_ids:
             p.changeDynamics(t_id, -1, lateralFriction=1.0)
-
-        # 차량 접촉 마찰도 기본값으로
+            
+        # 4. 랜덤 조건 생성 및 적용
+        cond = get_random_conditions()
+        
+        # 차량 질량 적용
+        p.changeDynamics(car_id, -1, mass=cond['mass'])
+        # 차량 휠 마찰 리셋 (혹시 모르니 1.0으로)
         for i in range(p.getNumJoints(car_id)):
             p.changeDynamics(car_id, i, lateralFriction=1.0)
         p.changeDynamics(car_id, -1, lateralFriction=1.0)
-
-        # 차량 질량 적용
-        p.changeDynamics(car_id, -1, mass=cond['mass'])
         
+        # 모터 제어 초기화 (이전 에피소드의 토크 제거)
+        for w in wheels:
+            p.setJointMotorControl2(car_id, w, p.VELOCITY_CONTROL, targetVelocity=0, force=0)
+            
+        # 잠시 대기 (물리 엔진이 리셋된 위치를 인지하도록)
+        for _ in range(10):
+            p.stepSimulation()
+            
         print(
             f"[{ep+1}/{NUM_EPISODES}] "
             f"m:{cond['mass']:.1f}kg, v_cmd:{cond['target_speed']:.1f}, "
-            f"μ_black:{cond['friction']}, trigger:{cond['trigger_dist']:.2f}m, "
-            f"T_brake:{cond['brake_torque']:.1f}",
+            f"μ_black:{cond['friction']}, trigger:{cond['trigger_dist']:.2f}m... ",
             end=""
         )
         
-        wheels = [8, 15]   # 구동 휠
-        steering = [0, 2]  # 조향 휠 (전륜)
-
         sim_time = 0.0
         is_failure = 0
         stop_distance = 0.0
         max_speed_achieved = 0.0
-        
         is_braking_active = False
-
-        # GRU/Attention용 per-step 로그
         episode_steps = []
-
-        # 트리거 시점 정보
+        
         speed_at_trigger = None
         time_at_trigger = None
         dist_at_trigger = None
@@ -204,57 +182,45 @@ if __name__ == "__main__":
             # --- 트리거 & 블랙아이스 로직 ---
             if dist_to_wall <= cond['trigger_dist']:
                 if not is_braking_active:
-                    # 트리거 시점 기록
                     speed_at_trigger = speed
                     time_at_trigger = sim_time
                     dist_at_trigger = dist_to_wall
-
-                    # 이 순간 plane + barca_track 전체 마찰력을 cond['friction']로 낮춤
+                    
+                    # 환경 마찰력 변경
                     ground_ids = [plane_id] + list(track_ids)
                     for gid in ground_ids:
                         p.changeDynamics(gid, -1, lateralFriction=cond['friction'])
                 is_braking_active = True
             
-            # --- 벽과의 거리 0.7m 이하에서 전륜 우측 조향 ---
-            # (※ 방향이 반대면 steer_cmd 부호를 +0.4로 바꿔보면 됨)
+            # --- 조향 로직 ---
             if dist_to_wall <= 1.5:
-                steer_cmd = -1.0  # 라디안 단위, 오른쪽(또는 왼쪽일 수 있음)
+                steer_cmd = -1.0
             else:
                 steer_cmd = 0.0
 
             # --- 구동 / 제동 제어 ---
             if is_braking_active:
-                # 블랙아이스 이후: TORQUE_CONTROL 브레이크
                 brake_torque_cmd = cond['brake_torque']
                 for w in wheels:
                     p.setJointMotorControl2(
-                        car_id, w,
-                        controlMode=p.TORQUE_CONTROL,
-                        force=-brake_torque_cmd
+                        car_id, w, controlMode=p.TORQUE_CONTROL, force=-brake_torque_cmd
                     )
             else:
-                # 블랙아이스 전: VELOCITY_CONTROL 로 일정 속도 유지
                 brake_torque_cmd = 0.0
                 for w in wheels:
                     p.setJointMotorControl2(
-                        car_id, w,
-                        controlMode=p.VELOCITY_CONTROL,
-                        targetVelocity=cond['target_speed'],
-                        force=200
+                        car_id, w, controlMode=p.VELOCITY_CONTROL,
+                        targetVelocity=cond['target_speed'], force=200
                     )
             
-            # 전륜 조향 적용
             for s in steering:
                 p.setJointMotorControl2(
-                    car_id, s,
-                    controlMode=p.POSITION_CONTROL,
-                    targetPosition=steer_cmd
+                    car_id, s, controlMode=p.POSITION_CONTROL, targetPosition=steer_cmd
                 )
                 
-            # 현재 노면 마찰 (트리거 전: 1.0, 후: cond['friction'])
             current_friction = cond['friction'] if is_braking_active else 1.0
 
-            # --- 시계열 로그 쌓기 ---
+            # 로그 기록
             step_row = {
                 "episode": ep,
                 "time": sim_time,
@@ -280,7 +246,7 @@ if __name__ == "__main__":
             
             p.resetDebugVisualizerCamera(5.0, 90, -40, car_pos)
             
-            # [디버깅] 이탈 확인 (Z축 체크)
+            # 이탈 확인
             if car_pos[2] < -1.0 or car_pos[2] > 2.0:
                 print(" -> ⚠️ 오류: 차량 이탈")
                 is_failure = -1
@@ -290,44 +256,36 @@ if __name__ == "__main__":
             is_collision = False
             if len(p.getContactPoints(car_id, wall_id)) > 0:
                 is_collision = True
-            
             for t_id in track_ids:
                 for c in p.getContactPoints(car_id, t_id):
-                    # contactNormal z성분이 작으면 수직벽에 가까움 → 충돌로 처리
                     if abs(c[7][2]) < 0.7:
                         is_collision = True
                         break
-                if is_collision:
-                    break
+                if is_collision: break
             
             if is_collision:
                 is_failure = 1
-                print(f" -> 💥 충돌! (변환지점: {cond['trigger_dist']:.2f}m)")
+                print(f" -> 💥 충돌!")
                 break
             
-            # 정지 성공 판정
-            if is_braking_active and speed < 0.1:
+            # 정지 성공
+            if is_braking_active and speed < 0.05:
                 if max_speed_achieved < 0.5:
                     print(" -> ⚠️ 출발 실패")
                     is_failure = -1
                     break
-                
                 is_failure = 0
                 stop_distance = dist_to_wall
-                if time_at_trigger is not None:
-                    time_to_stop = sim_time - time_at_trigger
-                else:
-                    time_to_stop = None
-                print(f" -> ✅ 정지 성공 (최종거리: {stop_distance:.2f}m)")
+                time_to_stop = sim_time - time_at_trigger if time_at_trigger else 0
+                print(f" -> ✅ 정지 성공 ({stop_distance:.2f}m)")
                 break
             
-            # 시뮬레이션 시간 제한
             if sim_time > MAX_SIM_TIME:
                 print(" -> ⏰ 시간 초과")
                 is_failure = -1
                 break
         
-        # 유효한 에피소드만 저장
+        # 데이터 저장
         if is_failure != -1:
             summary_row = {
                 "episode": ep,
@@ -339,34 +297,19 @@ if __name__ == "__main__":
                 "result_is_failure": is_failure,
                 "final_dist_to_wall": stop_distance if is_failure == 0 else 0.0,
                 "max_speed_achieved": max_speed_achieved,
-                "speed_at_trigger": speed_at_trigger if speed_at_trigger is not None else 0.0,
-                "time_at_trigger": time_at_trigger if time_at_trigger is not None else 0.0,
-                "dist_at_trigger": dist_at_trigger if dist_at_trigger is not None else 0.0,
-                "time_to_stop": time_to_stop if time_to_stop is not None else 0.0,
+                "speed_at_trigger": speed_at_trigger if speed_at_trigger else 0.0,
+                "time_at_trigger": time_at_trigger if time_at_trigger else 0.0,
+                "dist_at_trigger": dist_at_trigger if dist_at_trigger else 0.0,
+                "time_to_stop": time_to_stop if time_to_stop else 0.0,
             }
             summary_rows.append(summary_row)
-
             for row in episode_steps:
                 row["result_is_failure"] = is_failure
             all_step_rows.extend(episode_steps)
-        else:
-            pass
             
     p.disconnect()
     
-    # --- CSV 저장 ---
     if summary_rows:
-        df_sum = pd.DataFrame(summary_rows)
-        df_sum.to_csv("black_ice_data.csv", index=False)
-        print("\n[완료] 'black_ice_data.csv' 저장됨.")
-        print(df_sum.head())
-    else:
-        print("요약 데이터 없음 (summary).")
-
-    if all_step_rows:
-        df_steps = pd.DataFrame(all_step_rows)
-        df_steps.to_csv("black_ice_steps.csv", index=False)
-        print("\n[완료] 'black_ice_steps.csv' 저장됨.")
-        print(df_steps.head())
-    else:
-        print("시계열 데이터 없음 (steps).")
+        pd.DataFrame(summary_rows).to_csv("black_ice_data.csv", index=False)
+        print("\n[완료] 데이터 저장됨.")
+        pd.DataFrame(all_step_rows).to_csv("black_ice_steps.csv", index=False)
