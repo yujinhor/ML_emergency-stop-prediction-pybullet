@@ -26,7 +26,9 @@ def setup_environment():
     p.changeVisualShape(plane_id, -1, rgbaColor=[0.4, 0.4, 0.4, 1.0])
     
     # 트랙 + 벽
-    track_objects = p.loadSDF("f10_racecar/meshes/barca_track.sdf", globalScaling=1)
+    track_objects = p.loadSDF("f10_racecar/meshes/barca_track1.sdf", globalScaling=1)
+    #track_objects = p.loadSDF("f10_racecar/meshes/barca_track2.sdf", globalScaling=1)
+
     
     wall_id = track_objects[-1]
     track_ids = track_objects[:-1]
