@@ -100,12 +100,12 @@ def load_racecar(pos, yaw):
     
     return car
 
-# --- 3. 랜덤 파라미터 (질량 + 구동/브레이크 토크 등) ---
+# --- 3. 랜덤 파라미터 (질량 + 브레이크 토크) ---
 def get_random_conditions():
-    # 블랙아이스 구간에서의 노면 마찰계수
+    # 블랙아이스 구간에서의 노면 마찰계수 (예: 0.3/0.6/0.9 정도로 조정 가능)
     target_friction = random.choice([1.0, 0.5, 0.2])
     
-    # (옵션) 목표 속도: 제어에 직접 쓰지 않고 피처로만 쓸 수 있음
+    # 블랙아이스 진입 전까지 맞추려고 하는 휠 속도 (VELOCITY_CONTROL target)
     target_speed = random.uniform(80, 110)
     
     # 브레이크 시작 거리 (벽으로부터)
@@ -114,19 +114,15 @@ def get_random_conditions():
     # 차량 질량 (1kg ~ 10kg)
     mass = random.uniform(1.0, 10.0)
     
-    # 브레이크 토크 (정지 시 음수 토크로 사용)
+    # 브레이크 토크 (충분히 크게, 고정)
     brake_torque = 100.0
-    
-    # 🔥 구동(엑셀) 토크: TORQUE_CONTROL로 가속 제어
-    drive_torque = random.uniform(50.0, 150.0)
     
     return {
         "friction": target_friction,
         "target_speed": target_speed,
         "trigger_dist": trigger_dist,
         "mass": mass,
-        "brake_torque": brake_torque,
-        "drive_torque": drive_torque,
+        "brake_torque": brake_torque
     }
 
 # --- 4. 메인 실행 ---
@@ -142,8 +138,8 @@ if __name__ == "__main__":
     wall_pos_abs, _ = p.getBasePositionAndOrientation(wall_id)
     wall_x = wall_pos_abs[0]
     
-    summary_rows = []      # 에피소드 요약용 (에피소드 단위 피처 + 결과)
-    all_step_rows = []     # GRU/Attention용 시계열 (step 단위 로그)
+    summary_rows = []      # 에피소드 요약용
+    all_step_rows = []     # GRU/Attention용 시계열
     
     print(f"--- 데이터 수집 시작 (Black Ice + 질량 + 토크 제동 시나리오) ---")
     
@@ -172,7 +168,7 @@ if __name__ == "__main__":
             f"[{ep+1}/{NUM_EPISODES}] "
             f"m:{cond['mass']:.1f}kg, v_cmd:{cond['target_speed']:.1f}, "
             f"μ_black:{cond['friction']}, trigger:{cond['trigger_dist']:.2f}m, "
-            f"T_drive:{cond['drive_torque']:.1f}, T_brake:{cond['brake_torque']:.1f}",
+            f"T_brake:{cond['brake_torque']:.1f}",
             end=""
         )
         
@@ -198,7 +194,7 @@ if __name__ == "__main__":
         while True:
             car_pos, _ = p.getBasePositionAndOrientation(car_id)
             car_vel, _ = p.getBaseVelocity(car_id)
-            speed = np.linalg.norm(car_vel)  # 🔥 해당 시점 속도 (이미 수집 중)
+            speed = np.linalg.norm(car_vel)
             
             if speed > max_speed_achieved:
                 max_speed_achieved = speed
@@ -208,7 +204,7 @@ if __name__ == "__main__":
             # --- 트리거 & 블랙아이스 로직 ---
             if dist_to_wall <= cond['trigger_dist']:
                 if not is_braking_active:
-                    # 트리거 시점 기록 (🔥 이 시점의 속도도 요약에 포함)
+                    # 트리거 시점 기록
                     speed_at_trigger = speed
                     time_at_trigger = sim_time
                     dist_at_trigger = dist_to_wall
@@ -219,27 +215,33 @@ if __name__ == "__main__":
                         p.changeDynamics(gid, -1, lateralFriction=cond['friction'])
                 is_braking_active = True
             
-            # --- 벽과의 거리 1.5m 이하에서 전륜 우측 조향 ---
+            # --- 벽과의 거리 0.7m 이하에서 전륜 우측 조향 ---
+            # (※ 방향이 반대면 steer_cmd 부호를 +0.4로 바꿔보면 됨)
             if dist_to_wall <= 1.5:
                 steer_cmd = -1.0  # 라디안 단위, 오른쪽(또는 왼쪽일 수 있음)
             else:
                 steer_cmd = 0.0
 
-            # --- 구동 / 제동 제어 (모두 TORQUE_CONTROL) ---
+            # --- 구동 / 제동 제어 ---
             if is_braking_active:
-                # 블랙아이스 이후: 제동 토크 (음수)
-                motor_torque_cmd = -cond['brake_torque']
+                # 블랙아이스 이후: TORQUE_CONTROL 브레이크
+                brake_torque_cmd = cond['brake_torque']
+                for w in wheels:
+                    p.setJointMotorControl2(
+                        car_id, w,
+                        controlMode=p.TORQUE_CONTROL,
+                        force=-brake_torque_cmd
+                    )
             else:
-                # 블랙아이스 전: 구동 토크 (양수)
-                motor_torque_cmd = cond['drive_torque']
-
-            # 실제 휠에 토크 적용
-            for w in wheels:
-                p.setJointMotorControl2(
-                    car_id, w,
-                    controlMode=p.TORQUE_CONTROL,
-                    force=motor_torque_cmd
-                )
+                # 블랙아이스 전: VELOCITY_CONTROL 로 일정 속도 유지
+                brake_torque_cmd = 0.0
+                for w in wheels:
+                    p.setJointMotorControl2(
+                        car_id, w,
+                        controlMode=p.VELOCITY_CONTROL,
+                        targetVelocity=cond['target_speed'],
+                        force=200
+                    )
             
             # 전륜 조향 적용
             for s in steering:
@@ -253,25 +255,23 @@ if __name__ == "__main__":
             current_friction = cond['friction'] if is_braking_active else 1.0
 
             # --- 시계열 로그 쌓기 ---
-            # speed(시점별 속도) 이미 포함됨
             step_row = {
                 "episode": ep,
                 "time": sim_time,
                 "x": car_pos[0],
                 "y": car_pos[1],
                 "z": car_pos[2],
-                "speed": speed,                       # 🔥 해당 시점 속도
+                "speed": speed,
                 "dist_to_wall": dist_to_wall,
                 "current_friction": current_friction,
                 "is_braking": int(is_braking_active),
-                "wheel_torque_cmd": motor_torque_cmd, # 현재 적용된 휠 토크(가속/제동 공통)
+                "brake_torque_cmd": brake_torque_cmd,
                 "steer_cmd": steer_cmd,
                 "mass_kg": cond['mass'],
                 "friction": cond['friction'],
                 "init_speed_cmd": cond['target_speed'],
                 "trigger_dist_m": cond['trigger_dist'],
                 "base_brake_torque": cond['brake_torque'],
-                "drive_torque": cond['drive_torque'],
             }
             episode_steps.append(step_row)
             
@@ -336,23 +336,20 @@ if __name__ == "__main__":
                 "init_speed_cmd": cond['target_speed'],
                 "trigger_dist_m": cond['trigger_dist'],
                 "brake_torque": cond['brake_torque'],
-                "drive_torque": cond['drive_torque'],
                 "result_is_failure": is_failure,
                 "final_dist_to_wall": stop_distance if is_failure == 0 else 0.0,
                 "max_speed_achieved": max_speed_achieved,
-                "speed_at_trigger": speed_at_trigger if speed_at_trigger is not None else 0.0,  # 🔥 트리거 시점 속도
+                "speed_at_trigger": speed_at_trigger if speed_at_trigger is not None else 0.0,
                 "time_at_trigger": time_at_trigger if time_at_trigger is not None else 0.0,
                 "dist_at_trigger": dist_at_trigger if dist_at_trigger is not None else 0.0,
                 "time_to_stop": time_to_stop if time_to_stop is not None else 0.0,
             }
             summary_rows.append(summary_row)
 
-            # step 로그에도 결과 라벨 붙이기
             for row in episode_steps:
                 row["result_is_failure"] = is_failure
             all_step_rows.extend(episode_steps)
         else:
-            # 출발 실패 / 시간 초과 / 이탈 등은 버림
             pass
             
     p.disconnect()
