@@ -1,0 +1,79 @@
+<sdf version='1.6'>
+  <world name='default'>
+    <gravity>0 0 -9.8</gravity>
+
+    
+
+    <model name='part5.obj'>
+      <static>1</static>
+      <pose frame=''>0 0 0 0 0 0</pose>
+      <link name='link_d5'>
+        <inertial>
+          <mass>0</mass>
+          <inertia>
+            <ixx>0.166667</ixx> <ixy>0</ixy> <ixz>0</ixz>
+            <iyy>0.166667</iyy> <iyz>0</iyz> <izz>0.166667</izz>
+          </inertia>
+        </inertial>
+        <collision concave='yes' name='collision_5'>
+          <geometry>
+            <mesh>
+              <scale>1 1 1</scale>
+              <uri>part5.obj</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <mesh>
+              <scale>1 1 1</scale>
+              <uri>part5.obj</uri>
+            </mesh>
+          </geometry>
+          <material>
+            <ambient>1 1 1 1</ambient>
+            <diffuse>0.6 0.6 1 .6</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+            <emissive>0 0 0 0</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+
+    <model name='wall_stop'>
+      <static>1</static>
+      <pose>-17.3 -9.8 0.5 0 0 10 </pose>
+      <link name='wall_stop_link'>
+        <inertial>
+          <mass>0</mass>
+          <inertia>
+            <ixx>0.0</ixx> <ixy>0.0</ixy> <ixz>0.0</ixz>
+            <iyy>0.0</iyy> <iyz>0.0</iyz> <izz>0.0</izz>
+          </inertia>
+        </inertial>
+        <collision name='collision_wall'>
+          <geometry>
+            <box>
+              <size>1.5 0.1 1.0</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual_wall'>
+          <geometry>
+            <box>
+              <size>1.5 0.1 1.0</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+            <emissive>0 0 0 0</emissive>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>
