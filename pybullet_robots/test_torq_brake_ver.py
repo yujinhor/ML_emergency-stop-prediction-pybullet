@@ -175,6 +175,10 @@ if __name__ == "__main__":
         time_at_trigger = None
         episode_steps = []
 
+        # --- 10Hz 로깅 설정 ---
+        log_interval = 0.1          # 10Hz
+        last_log_time = -log_interval  # 첫 루프에서 바로 로깅되도록
+
         while True:
             car_pos, _ = p.getBasePositionAndOrientation(car_id)
             car_vel, _ = p.getBaseVelocity(car_id)
@@ -202,8 +206,10 @@ if __name__ == "__main__":
                 is_braking_active = True
             
             # 조향
-            if dist_to_wall <= 1.5: steer_cmd = -1.0
-            else: steer_cmd = 0.0
+            if dist_to_wall <= 1.5:
+                steer_cmd = -1.0
+            else:
+                steer_cmd = 0.0
 
             # 제동/구동
             if is_braking_active:
@@ -218,18 +224,20 @@ if __name__ == "__main__":
             for s in steering:
                 p.setJointMotorControl2(car_id, s, controlMode=p.POSITION_CONTROL, targetPosition=steer_cmd)
                 
-            # 로그 저장
-            step_row = {
-                "episode": ep,
-                "time": sim_time,
-                "speed": speed,
-                "dist_to_wall": dist_to_wall,
-                "drag_force_N": drag_force_mag,
-                "is_braking": int(is_braking_active),
-                "friction": cond['friction'],
-                "trigger_dist_m": cond['trigger_dist']
-            }
-            episode_steps.append(step_row)
+            # --- [여기서 10Hz로만 데이터 로깅] ---
+            if sim_time - last_log_time >= log_interval:
+                step_row = {
+                    "episode": ep,
+                    "time": sim_time,
+                    "speed": speed,
+                    "dist_to_wall": dist_to_wall,
+                    "drag_force_N": drag_force_mag,
+                    "is_braking": int(is_braking_active),
+                    "friction": cond['friction'],
+                    "trigger_dist_m": cond['trigger_dist']
+                }
+                episode_steps.append(step_row)
+                last_log_time = sim_time
             
             p.stepSimulation()
             sim_time += PHYSICS_TIME_STEP
@@ -243,13 +251,15 @@ if __name__ == "__main__":
 
             # 충돌 확인
             is_collision = False
-            if len(p.getContactPoints(car_id, wall_id)) > 0: is_collision = True
+            if len(p.getContactPoints(car_id, wall_id)) > 0:
+                is_collision = True
             for t_id in track_ids:
                 for c in p.getContactPoints(car_id, t_id):
                     if abs(c[7][2]) < 0.7:
                         is_collision = True
                         break
-                if is_collision: break
+                if is_collision: 
+                    break
             
             if is_collision:
                 is_failure = 1
