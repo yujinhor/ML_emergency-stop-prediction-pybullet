@@ -8,8 +8,19 @@ import pandas as pd
 
 # --- 0. 시뮬레이션 상수 ---
 PHYSICS_TIME_STEP = 1.0 / 240.0
-NUM_EPISODES = 50
+NUM_EPISODES = 500  # [수정] 500회로 증가
 MAX_SIM_TIME = 1000.0 
+
+# [추가] 난수 시드 고정
+GLOBAL_SEED = 42
+
+def set_global_seed(seed: int = 42):
+    """
+    Python random / NumPy 난수 시드를 고정해서
+    매 실행마다 동일한 에피소드 조건(마찰, 속도, 질량 등)이 나오도록 함.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
 
 # 차량 공기 저항 관련 상수
 DRAG_COEFF = 0.82         # 항력 계수 (Cd)
@@ -28,9 +39,7 @@ def setup_environment():
     plane_id = p.loadURDF("plane_implicit.urdf")
     p.changeVisualShape(plane_id, -1, rgbaColor=[0.4, 0.4, 0.4, 1.0])
     
-    track_objects = p.loadSDF("f10_racecar/meshes/barca_track1.sdf", globalScaling=1)
-    #track_objects = p.loadSDF("f10_racecar/meshes/barca_track2.sdf", globalScaling=1)
-
+    track_objects = p.loadSDF("f10_racecar/meshes/barca_track.sdf", globalScaling=1)
     
     wall_id = track_objects[-1]
     track_ids = track_objects[:-1]
@@ -118,8 +127,13 @@ def apply_drag_force(car_id, air_density):
 
 # --- 5. 메인 실행 ---
 if __name__ == "__main__":
-    p.connect(p.GUI)
-    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+    # [설정] 난수 시드 고정
+    set_global_seed(GLOBAL_SEED)
+    print(f"[INFO] Global random seed fixed to {GLOBAL_SEED}")
+
+    # [수정] GUI 비활성화 (DIRECT 모드)
+    p.connect(p.DIRECT)
+    # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0) # DIRECT 모드에서는 필요 없음
     
     plane_id, track_ids, wall_id = setup_environment()
     wall_pos_abs, _ = p.getBasePositionAndOrientation(wall_id)
@@ -130,8 +144,8 @@ if __name__ == "__main__":
     summary_rows = []
     all_step_rows = []
     
-    # --- 테이블 헤더 출력 (TrigDist 추가됨) ---
-    print(f"\n--- 데이터 수집 시작 ---")
+    # --- 테이블 헤더 출력 ---
+    print(f"\n--- 데이터 수집 시작 (총 {NUM_EPISODES}회, GUI 없음) ---")
     print(f"{'EP':<5} | {'Mass(kg)':<8} | {'Vel(cmd)':<8} | {'Fric(μ)':<7} | {'TrigDist(m)':<11} | {'MaxDrag(N)':<10} | {'Result':<10} | {'FinalDist(m)':<10}")
     print("-" * 105)
     
@@ -161,23 +175,19 @@ if __name__ == "__main__":
         for _ in range(10):
             p.stepSimulation()
             
-        # --- [시작 정보 출력] 질량 | 속도 | 마찰계수 | 트리거거리(제동시점) ---
-        print(f"[{ep+1:02d}/{NUM_EPISODES}] | {cond['mass']:<8.1f} | {cond['target_speed']:<8.1f} | {cond['friction']:<7.1f} | {cond['trigger_dist']:<11.2f} | ", end="", flush=True)
+        # --- [진행 상황 출력] ---
+        print(f"[{ep+1:03d}/{NUM_EPISODES}] | {cond['mass']:<8.1f} | {cond['target_speed']:<8.1f} | {cond['friction']:<7.1f} | {cond['trigger_dist']:<11.2f} | ", end="", flush=True)
         
         sim_time = 0.0
         is_failure = 0
         stop_distance = 0.0
         max_speed_achieved = 0.0
         is_braking_active = False
-        max_drag_val = 0.0  # 최대 공기저항 기록용
+        max_drag_val = 0.0
         
         speed_at_trigger = None
         time_at_trigger = None
         episode_steps = []
-
-        # --- 10Hz 로깅 설정 ---
-        log_interval = 0.1          # 10Hz
-        last_log_time = -log_interval  # 첫 루프에서 바로 로깅되도록
 
         while True:
             car_pos, _ = p.getBasePositionAndOrientation(car_id)
@@ -189,7 +199,7 @@ if __name__ == "__main__":
             
             dist_to_wall = abs(car_pos[0] - wall_x)
             
-            # 공기 저항 및 최대값 갱신
+            # 공기 저항
             drag_force_mag = apply_drag_force(car_id, current_air_density)
             if drag_force_mag > max_drag_val:
                 max_drag_val = drag_force_mag
@@ -206,9 +216,9 @@ if __name__ == "__main__":
                 is_braking_active = True
             
             # 조향
-            if dist_to_wall <= 1.5:
+            if dist_to_wall <= 1.5: 
                 steer_cmd = -1.0
-            else:
+            else: 
                 steer_cmd = 0.0
 
             # 제동/구동
@@ -224,34 +234,31 @@ if __name__ == "__main__":
             for s in steering:
                 p.setJointMotorControl2(car_id, s, controlMode=p.POSITION_CONTROL, targetPosition=steer_cmd)
                 
-            # --- [여기서 10Hz로만 데이터 로깅] ---
-            if sim_time - last_log_time >= log_interval:
-                step_row = {
-                    "episode": ep,
-                    "time": sim_time,
-                    "speed": speed,
-                    "dist_to_wall": dist_to_wall,
-                    "drag_force_N": drag_force_mag,
-                    "is_braking": int(is_braking_active),
-                    "friction": cond['friction'],
-                    "trigger_dist_m": cond['trigger_dist']
-                }
-                episode_steps.append(step_row)
-                last_log_time = sim_time
+            # 로그 저장 (mass 포함됨)
+            step_row = {
+                "episode": ep,
+                "time": sim_time,
+                "speed": speed,
+                "dist_to_wall": dist_to_wall,
+                "drag_force_N": drag_force_mag,
+                "is_braking": int(is_braking_active),
+                "friction": cond['friction'],
+                "trigger_dist_m": cond['trigger_dist'],
+                "mass": cond['mass'] 
+            }
+            episode_steps.append(step_row)
             
             p.stepSimulation()
             sim_time += PHYSICS_TIME_STEP
             
-            p.resetDebugVisualizerCamera(5.0, 90, -40, car_pos)
-            
             # 이탈 확인
             if car_pos[2] < -1.0 or car_pos[2] > 2.0:
                 is_failure = -1
-                break # Loop 종료
+                break
 
             # 충돌 확인
             is_collision = False
-            if len(p.getContactPoints(car_id, wall_id)) > 0:
+            if len(p.getContactPoints(car_id, wall_id)) > 0: 
                 is_collision = True
             for t_id in track_ids:
                 for c in p.getContactPoints(car_id, t_id):
@@ -263,23 +270,22 @@ if __name__ == "__main__":
             
             if is_collision:
                 is_failure = 1
-                break # Loop 종료
+                break
             
             # 정지 성공
-            if is_braking_active and speed < 0.06:
+            if is_braking_active and speed < 0.05:
                 if max_speed_achieved < 0.5:
                     is_failure = -1 # 출발 실패
                     break
                 is_failure = 0
                 stop_distance = dist_to_wall
-                break # Loop 종료
+                break
             
             if sim_time > MAX_SIM_TIME:
                 is_failure = -1 # 시간 초과
                 break
         
-        # --- [종료 정보 출력] 최대공기저항 | 결과 | 최종 정지거리 ---
-        # 결과 문자열 변환
+        # 결과 출력
         if is_failure == 0: result_str = "Success"
         elif is_failure == 1: result_str = "Crash"
         else: result_str = "Error"
@@ -294,7 +300,7 @@ if __name__ == "__main__":
                 "friction_cond": cond['friction'],
                 "air_density": current_air_density,
                 "init_speed_cmd": cond['target_speed'],
-                "trigger_dist_m": cond['trigger_dist'], # CSV에도 트리거 거리 명시
+                "trigger_dist_m": cond['trigger_dist'],
                 "brake_torque": cond['brake_torque'],
                 "result_is_failure": is_failure,
                 "final_dist_to_wall": stop_distance if is_failure == 0 else 0.0,
@@ -307,7 +313,42 @@ if __name__ == "__main__":
             
     p.disconnect()
     
+    # --- [수정] Train(80%) / Val(20%) 분할 및 저장 ---
     if summary_rows:
-        pd.DataFrame(summary_rows).to_csv("black_ice_drag_summary.csv", index=False)
-        print("\n[완료] 데이터 저장됨 (black_ice_drag_summary.csv)")
-        pd.DataFrame(all_step_rows).to_csv("black_ice_drag_steps.csv", index=False)
+        print("\n--- 데이터 처리 및 분할 저장 중 ---")
+        
+        df_summary = pd.DataFrame(summary_rows)
+        df_steps = pd.DataFrame(all_step_rows)
+        
+        # 유니크 에피소드 ID 추출
+        episodes = df_summary['episode'].unique()
+        
+        # 무작위로 섞음 (시드는 고정되어 있으므로 매번 동일하게 섞임)
+        np.random.shuffle(episodes)
+        
+        # 8:2 지점 계산
+        split_idx = int(len(episodes) * 0.8)
+        
+        train_eps = episodes[:split_idx]
+        val_eps = episodes[split_idx:]
+        
+        print(f"Total Episodes: {len(episodes)}")
+        print(f"Train Episodes: {len(train_eps)} (예: {train_eps[:5]} ...)")
+        print(f"Val Episodes:   {len(val_eps)} (예: {val_eps[:5]} ...)")
+        
+        # 데이터프레임 필터링
+        train_summary = df_summary[df_summary['episode'].isin(train_eps)]
+        val_summary = df_summary[df_summary['episode'].isin(val_eps)]
+        
+        train_steps = df_steps[df_steps['episode'].isin(train_eps)]
+        val_steps = df_steps[df_steps['episode'].isin(val_eps)]
+        
+        # 파일 저장
+        train_summary.to_csv("train_summary.csv", index=False)
+        train_steps.to_csv("train_steps.csv", index=False)
+        val_summary.to_csv("val_summary.csv", index=False)
+        val_steps.to_csv("val_steps.csv", index=False)
+        
+        print("\n[완료] 4개의 파일이 저장되었습니다:")
+        print("  - train_summary.csv, train_steps.csv")
+        print("  - val_summary.csv, val_steps.csv")
