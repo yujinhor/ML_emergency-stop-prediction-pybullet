@@ -9,4 +9,4 @@ test_torq_brake_ver : 등속도로 주행 후 정지 시점부터 토크 제어 
 
 test_vel_ver : 등속도로 주행 후 정지 시점부터 속도 제어 -> 정지 시점부터 속도를 바로 0으로 설정 -> 슬립 거의 없지만 성공 데이터 많음
 
-transformer : copilot에서 진행
+transformer : colab에서 진행
