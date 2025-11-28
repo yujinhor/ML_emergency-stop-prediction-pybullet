@@ -8,8 +8,13 @@ import pandas as pd
 
 # --- 0. 시뮬레이션 상수 ---
 PHYSICS_TIME_STEP = 1.0 / 240.0
-NUM_EPISODES = 500  # [수정] 500회로 증가
+NUM_EPISODES = 500
 MAX_SIM_TIME = 1000.0 
+
+# [추가] 데이터 수집 주기를 위한 설정
+TARGET_LOG_HZ = 10  # 목표 데이터 수집 주파수 (10Hz)
+# 240Hz 물리 스텝 중 몇 번마다 저장할지 계산 (240 / 10 = 24스텝마다 저장)
+LOG_INTERVAL_STEPS = int((1.0 / PHYSICS_TIME_STEP) / TARGET_LOG_HZ)
 
 # [추가] 난수 시드 고정
 GLOBAL_SEED = 42
@@ -130,10 +135,10 @@ if __name__ == "__main__":
     # [설정] 난수 시드 고정
     set_global_seed(GLOBAL_SEED)
     print(f"[INFO] Global random seed fixed to {GLOBAL_SEED}")
+    print(f"[INFO] Data collection frequency set to {TARGET_LOG_HZ}Hz (Log every {LOG_INTERVAL_STEPS} steps)")
 
     # [수정] GUI 비활성화 (DIRECT 모드)
     p.connect(p.DIRECT)
-    # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0) # DIRECT 모드에서는 필요 없음
     
     plane_id, track_ids, wall_id = setup_environment()
     wall_pos_abs, _ = p.getBasePositionAndOrientation(wall_id)
@@ -179,6 +184,7 @@ if __name__ == "__main__":
         print(f"[{ep+1:03d}/{NUM_EPISODES}] | {cond['mass']:<8.1f} | {cond['target_speed']:<8.1f} | {cond['friction']:<7.1f} | {cond['trigger_dist']:<11.2f} | ", end="", flush=True)
         
         sim_time = 0.0
+        step_counter = 0  # [수정] 스텝 카운터 초기화
         is_failure = 0
         stop_distance = 0.0
         max_speed_achieved = 0.0
@@ -233,23 +239,25 @@ if __name__ == "__main__":
             
             for s in steering:
                 p.setJointMotorControl2(car_id, s, controlMode=p.POSITION_CONTROL, targetPosition=steer_cmd)
-                
-            # 로그 저장 (mass 포함됨)
-            step_row = {
-                "episode": ep,
-                "time": sim_time,
-                "speed": speed,
-                "dist_to_wall": dist_to_wall,
-                "drag_force_N": drag_force_mag,
-                "is_braking": int(is_braking_active),
-                "friction": cond['friction'],
-                "trigger_dist_m": cond['trigger_dist'],
-                "mass": cond['mass'] 
-            }
-            episode_steps.append(step_row)
+            
+            # [수정] 데이터 저장을 10Hz로 제한 (24스텝마다 저장)
+            if step_counter % LOG_INTERVAL_STEPS == 0:
+                step_row = {
+                    "episode": ep,
+                    "time": sim_time,
+                    "speed": speed,
+                    "dist_to_wall": dist_to_wall,
+                    "drag_force_N": drag_force_mag,
+                    "is_braking": int(is_braking_active),
+                    "friction": cond['friction'],
+                    "trigger_dist_m": cond['trigger_dist'],
+                    "mass": cond['mass'] 
+                }
+                episode_steps.append(step_row)
             
             p.stepSimulation()
             sim_time += PHYSICS_TIME_STEP
+            step_counter += 1 # [수정] 스텝 카운트 증가
             
             # 이탈 확인
             if car_pos[2] < -1.0 or car_pos[2] > 2.0:
@@ -323,7 +331,7 @@ if __name__ == "__main__":
         # 유니크 에피소드 ID 추출
         episodes = df_summary['episode'].unique()
         
-        # 무작위로 섞음 (시드는 고정되어 있으므로 매번 동일하게 섞임)
+        # 무작위로 섞음
         np.random.shuffle(episodes)
         
         # 8:2 지점 계산
