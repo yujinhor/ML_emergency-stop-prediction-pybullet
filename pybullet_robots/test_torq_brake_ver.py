@@ -29,7 +29,7 @@ def set_global_seed(seed: int = 42):
 
 # 차량 공기 저항 관련 상수
 DRAG_COEFF = 0.82         # 항력 계수 (Cd)
-FRONTAL_AREA = 0.1        # 전면 면적 (m^2)
+FRONTAL_AREA = 0.0532        # 전면 면적 (m^2)
 
 # 시작 위치
 START_POS = [-11.0, -10.7, 0.5]
@@ -95,8 +95,8 @@ def get_random_conditions():
     target_friction = random.choice([1.0, 0.5, 0.1])
     target_speed = random.uniform(60, 80)
     trigger_dist = random.uniform(0.01, 0.5)
-    mass = random.uniform(1.0, 10.0)
-    brake_torque = 100.0
+    mass = random.uniform(2.7, 4.34)
+    brake_torque = 0.4
     
     return {
         "friction": target_friction,
