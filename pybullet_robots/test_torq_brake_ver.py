@@ -95,7 +95,7 @@ def get_random_conditions():
     target_friction = random.choice([1.0, 0.5, 0.1])
     target_speed = random.uniform(60, 80)
     trigger_dist = random.uniform(0.01, 0.5)
-    mass = random.uniform(2.7, 4.34)
+    mass = random.uniform(1.0, 5.0)
     brake_torque = 0.4
     
     return {
@@ -235,7 +235,7 @@ if __name__ == "__main__":
             else:
                 brake_torque_cmd = 0.0
                 for w in wheels:
-                    p.setJointMotorControl2(car_id, w, controlMode=p.VELOCITY_CONTROL, targetVelocity=cond['target_speed'], force=200)
+                    p.setJointMotorControl2(car_id, w, controlMode=p.VELOCITY_CONTROL, targetVelocity=cond['target_speed'], force=2)
             
             for s in steering:
                 p.setJointMotorControl2(car_id, s, controlMode=p.POSITION_CONTROL, targetPosition=steer_cmd)
