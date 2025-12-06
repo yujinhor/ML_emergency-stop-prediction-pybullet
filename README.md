@@ -4,3 +4,5 @@ PyBullet 시뮬레이터를 이용하여 곡선 도로에서의 로봇 및 자�
 
 
 데이터 : https://drive.google.com/drive/folders/1uMH3sl9O4RyyEAookkKQj1yIpHY2p_Iv?usp=drive_link
+
+데이터(전처리) : https://drive.google.com/drive/folders/1xvrGReZB15PfyJa3uBjVTTJz1InclRAR
