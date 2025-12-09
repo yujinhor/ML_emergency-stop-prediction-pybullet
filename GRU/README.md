@@ -17,7 +17,7 @@
     * **Global Explanation:** 추출된 100개 샘플의 SHAP 값을 평균 내어 모델 전체의 **전역적 변수 중요도(Global Feature Importance)**를 도출하였습니다.
 
 ---
-## 📊 XAI Analysis Results: From "Reactive" to "Physics-Aware"
+##  XAI Analysis Results: From "Reactive" to "Physics-Aware"
 
 SHAP(Shapley Additive Explanations)과 Input Attention 메커니즘을 활용하여 두 모델의 의사결정 과정을 비교 분석하였습니다. 분석 결과, 단순 성능 차이를 넘어 데이터를 바라보는 **모델의 관점(Perspective)**에서 근본적인 차이가 발견되었습니다.
 
@@ -58,5 +58,5 @@ XAI 분석의 신뢰도를 검증하기 위해, DA-RNN 모델 내부의 **Input 
     2.  이는 SHAP 분석에서 `Air_Density`가 1위로 선정된 결과와 완벽하게 일치합니다.
 * **결론:** 모델이 내부적으로 중요하게 **주목(Attention)**한 변수가 실제로도 예측 결과에 가장 큰 **기여(Contribution)**를 했습니다. 이는 DA-RNN이 우연히 맞춘 것이 아니라, **논리적 타당성을 가지고 학습되었음**을 강력하게 시사합니다.
 
-> **💡 Summary**
+> ** Summary**
 > 본 연구를 통해 **DA-RNN**은 단순한 시계열 예측 성능 향상뿐만 아니라, **물리적 환경 변수(공기 밀도 등)를 고려한 설명 가능한(Explainable) 의사결정**을 수행함을 입증하였습니다. 이는 실제 산업 현장에서의 신뢰성(Reliability) 확보에 있어 매우 중요한 요소입니다.
