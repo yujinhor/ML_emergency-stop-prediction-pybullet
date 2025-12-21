@@ -1,6 +1,6 @@
 # 실시간 로봇 급제동 실패 예측과 경보 정책 (Real-time Prediction of Robot Emergency Braking Failure and Warning Policy)
 
-본 프로젝트는 건국대학교 2025학년도 **기계학습** 과목의 **T7조** 기말 프로젝트 결과물입니다. 
+본 프로젝트는 건국대학교 2025학년도 2학기 **기계학습** 과목의 **T7조** 기말 프로젝트 결과물입니다. 
 
 <br>
 
