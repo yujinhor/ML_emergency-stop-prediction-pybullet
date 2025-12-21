@@ -1,0 +1,9 @@
+accuracy: 0.9335956714215445
+best_f1_class1: 0.8922585794094174
+best_threshold: 0.58
+confusion_matrix:
+- - 1339
+  - 45
+- - 90
+  - 559
+num_test_samples: 2033
